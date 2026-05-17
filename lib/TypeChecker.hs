@@ -81,3 +81,22 @@ checker expr = case expr of
     case t1 of
       (t11 `TArrow` t12) -> if t2 == t11 then return t12 else throwError ("argument type mismatch: expected " ++ show t11 ++ ", got " ++ show t2)
       _ -> throwError ("expected a function type, got " ++ show t1)
+
+  -- Rule T-UNIT
+  EUnit -> return TUnit
+
+  -- Rule T-ASCRIPT
+  EAscription e t -> do
+    t' <- checker e
+    if t' == t
+    then return t
+    else throwError ("ascription type mismatch: declared " ++ show t ++ ", but inferred " ++ show t')
+
+  -- Rule T-LET
+  ELet x e1 e2 -> do
+    t1 <- checker e1
+    env <- get
+    put $ (x, t1) : env
+    t2 <- checker e2
+    put env
+    return t2

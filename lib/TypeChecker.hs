@@ -100,3 +100,23 @@ checker expr = case expr of
     t2 <- checker e2
     put env
     return t2
+
+  -- Rule T-PAIR
+  EPair e1 e2 -> do
+    t1 <- checker e1
+    t2 <- checker e2
+    return (TPair t1 t2)
+
+  -- Rule T-FST
+  EFst e -> do
+    t <- checker e
+    case t of
+      TPair t1 _ -> return t1
+      _ -> throwError ("fst expects a pair, got " ++ show t)
+
+  --Rule T-SND
+  ESnd e -> do
+    t <- checker e
+    case t of
+      TPair _ t2 -> return t2
+      _ -> throwError ("snd expects a pair, got " ++ show t)

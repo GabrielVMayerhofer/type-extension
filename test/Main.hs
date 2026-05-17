@@ -151,6 +151,62 @@ testAppArgMismatch = TestCase $
     Left _  -> return ()
     Right t -> assertFailure ("expected type error, got " ++ show t)
 
+-- Pairs (well-typed)
+testPairBoolNat :: Test
+testPairBoolNat = TestCase $
+  assertEqual "(true, zero) : Bool × Nat"
+    (Right (TPair TBool TNat))
+    (run (EPair ETrue Zero))
+
+testPairNatBool :: Test
+testPairNatBool = TestCase $
+  assertEqual "(zero, false) : Nat × Bool"
+    (Right (TPair TNat TBool))
+    (run (EPair Zero EFalse))
+
+testFstPair :: Test
+testFstPair = TestCase $
+  assertEqual "(true, zero).1 : Bool"
+    (Right TBool)
+    (run (EFst (EPair ETrue Zero)))
+
+testSndPair :: Test
+testSndPair = TestCase $
+  assertEqual "(true, zero).2 : Nat"
+    (Right TNat)
+    (run (ESnd (EPair ETrue Zero)))
+
+-- Pairs (ill-typed)
+testFstNonPair :: Test
+testFstNonPair = TestCase $
+  case run (EFst ETrue) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testSndNonPair :: Test
+testSndNonPair = TestCase $
+  case run (ESnd Zero) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testPairUnitBool :: Test
+testPairUnitBool = TestCase $
+  assertEqual "(unit, true) : Unit × Bool"
+    (Right (TPair TUnit TBool))
+    (run (EPair EUnit ETrue))
+
+testNestedPair :: Test
+testNestedPair = TestCase $
+  assertEqual "((true, zero), unit) : (Bool × Nat) × Unit"
+    (Right (TPair (TPair TBool TNat) TUnit))
+    (run (EPair (EPair ETrue Zero) EUnit))
+
+testPairWithFunction :: Test
+testPairWithFunction = TestCase $
+  assertEqual "(\\x:Bool. x, zero) : (Bool -> Bool) × Nat"
+    (Right (TPair (TBool `TArrow` TBool) TNat))
+    (run (EPair (Abs ("x", TBool) (Var "x")) Zero))
+
 tests :: Test
 tests = TestList
   [ TestLabel "ETrue"                testTrue
@@ -179,6 +235,17 @@ tests = TestList
   , TestLabel "App returns Bool"     testAppReturnsBool
   , TestLabel "App not a function"   testAppNotAFunction
   , TestLabel "App arg mismatch"     testAppArgMismatch
+
+  -- Pessoa 2: Pairs
+  , TestLabel "Pair Bool Nat"        testPairBoolNat
+  , TestLabel "Pair Nat Bool"        testPairNatBool
+  , TestLabel "Fst Pair"             testFstPair
+  , TestLabel "Snd Pair"             testSndPair
+  , TestLabel "Fst Non-Pair"         testFstNonPair
+  , TestLabel "Snd Non-Pair"         testSndNonPair
+  , TestLabel "Pair Unit Bool"       testPairUnitBool
+  , TestLabel "Nested Pair"          testNestedPair
+  , TestLabel "Pair With Function"   testPairWithFunction
   ]
 
 main :: IO ()

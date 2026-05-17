@@ -15,6 +15,9 @@ data Expr = ETrue
           | EUnit                     -- unit type
           | EAscription Expr Type     -- ascription (t as T)
           | ELet Name Expr Expr       -- let x = t1 in t2
+          | EPair Expr Expr           -- pair: (t1, t2)
+          | EFst Expr                 -- first projection: t.1
+          | ESnd Expr                 -- second projection: t.2
      deriving (Eq, Show)
 
 data Value = VTrue
@@ -23,6 +26,7 @@ data Value = VTrue
            | VSucc Value
            | VAbs (Name, Type) Expr
            | VUnit                    -- singleton unit value
+           | VPair Value Value
      deriving (Eq, Show)
 
 data Type = TBool
@@ -30,4 +34,5 @@ data Type = TBool
           | Type `TArrow` Type
           | TUnit                     -- singleton unit type
           | TBase String              -- base type (String, Float, etc)
+          | TPair Type Type
      deriving (Eq, Show)

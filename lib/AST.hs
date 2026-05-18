@@ -22,6 +22,16 @@ data Expr = ETrue
           -- Variants
           | ETag Name Expr Type       -- <tag=t> as T
           | ECaseVariant Expr [(Name, Name, Expr)] -- case t of <l=x> => t_x
+          --Pairs
+          | EPair Expr Expr           -- pair: (t1, t2)
+          | EFst Expr                 -- first projection: t.1
+          | ESnd Expr                 -- second projection: t.2
+          --Tuples
+          | ETuple [Expr]
+          | EProjIndex Expr Int
+          --Records
+          | ERecord [(Name, Expr)]
+          | EProjLabel Expr Name
      deriving (Eq, Show)
 
 data Value = VTrue
@@ -30,6 +40,9 @@ data Value = VTrue
            | VSucc Value
            | VAbs (Name, Type) Expr
            | VUnit                    -- singleton unit value
+           | VPair Value Value
+           | VTuple [Value]
+           | VRecord [(Name, Value)]
      deriving (Eq, Show)
 
 data Type = TBool
@@ -41,4 +54,10 @@ data Type = TBool
           | TSum Type Type            -- T1 + T2
           -- Variants
           | TVariant [(Name, Type)]   -- <l1:T1, ..., ln:Tn>
+          --Pairs
+          | TPair Type Type
+          --Tuples
+          | TTuple [Type]
+          --Records
+          | TRecord [(Name, Type)]
      deriving (Eq, Show)

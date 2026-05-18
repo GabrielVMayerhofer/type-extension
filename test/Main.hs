@@ -203,6 +203,162 @@ testVariantCaseMissingBranch = TestCase $
     Left _ -> return ()
     Right t -> assertFailure ("expected type error, got " ++ show t)
 
+-- Pairs (well-typed)
+testPairBoolNat :: Test
+testPairBoolNat = TestCase $
+  assertEqual "(true, zero) : Bool × Nat"
+    (Right (TPair TBool TNat))
+    (run (EPair ETrue Zero))
+
+testPairNatBool :: Test
+testPairNatBool = TestCase $
+  assertEqual "(zero, false) : Nat × Bool"
+    (Right (TPair TNat TBool))
+    (run (EPair Zero EFalse))
+
+testFstPair :: Test
+testFstPair = TestCase $
+  assertEqual "(true, zero).1 : Bool"
+    (Right TBool)
+    (run (EFst (EPair ETrue Zero)))
+
+testSndPair :: Test
+testSndPair = TestCase $
+  assertEqual "(true, zero).2 : Nat"
+    (Right TNat)
+    (run (ESnd (EPair ETrue Zero)))
+
+-- Pairs (ill-typed)
+testFstNonPair :: Test
+testFstNonPair = TestCase $
+  case run (EFst ETrue) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testSndNonPair :: Test
+testSndNonPair = TestCase $
+  case run (ESnd Zero) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testPairUnitBool :: Test
+testPairUnitBool = TestCase $
+  assertEqual "(unit, true) : Unit × Bool"
+    (Right (TPair TUnit TBool))
+    (run (EPair EUnit ETrue))
+
+testNestedPair :: Test
+testNestedPair = TestCase $
+  assertEqual "((true, zero), unit) : (Bool × Nat) × Unit"
+    (Right (TPair (TPair TBool TNat) TUnit))
+    (run (EPair (EPair ETrue Zero) EUnit))
+
+testPairWithFunction :: Test
+testPairWithFunction = TestCase $
+  assertEqual "(\\x:Bool. x, zero) : (Bool -> Bool) × Nat"
+    (Right (TPair (TBool `TArrow` TBool) TNat))
+    (run (EPair (Abs ("x", TBool) (Var "x")) Zero))
+
+-- Tuples (well-typed)
+testTupleBoolNatUnit :: Test
+testTupleBoolNatUnit = TestCase $
+  assertEqual "(true, zero, unit) : Bool × Nat × Unit"
+    (Right (TTuple [TBool, TNat, TUnit]))
+    (run (ETuple [ETrue, Zero, EUnit]))
+
+testTupleProjectionFirst :: Test
+testTupleProjectionFirst = TestCase $
+  assertEqual "(true, zero, unit).1 : Bool"
+    (Right TBool)
+    (run (EProjIndex (ETuple [ETrue, Zero, EUnit]) 1))
+
+testTupleProjectionSecond :: Test
+testTupleProjectionSecond = TestCase $
+  assertEqual "(true, zero, unit).2 : Nat"
+    (Right TNat)
+    (run (EProjIndex (ETuple [ETrue, Zero, EUnit]) 2))
+
+testTupleProjectionThird :: Test
+testTupleProjectionThird = TestCase $
+  assertEqual "(true, zero, unit).3 : Unit"
+    (Right TUnit)
+    (run (EProjIndex (ETuple [ETrue, Zero, EUnit]) 3))
+
+-- Tuples (ill-typed)
+testTupleProjectionOutOfBounds :: Test
+testTupleProjectionOutOfBounds = TestCase $
+  case run (EProjIndex (ETuple [ETrue, Zero]) 3) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testTupleProjectionNonTuple :: Test
+testTupleProjectionNonTuple = TestCase $
+  case run (EProjIndex ETrue 1) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+-- Records (well-typed)
+testRecordBoolNat :: Test
+testRecordBoolNat = TestCase $
+  assertEqual "{active = true, age = zero} : {active: Bool, age: Nat}"
+    (Right (TRecord [("active", TBool), ("age", TNat)]))
+    (run (ERecord [("active", ETrue), ("age", Zero)]))
+
+testRecordProjectionBool :: Test
+testRecordProjectionBool = TestCase $
+  assertEqual "{active = true, age = zero}.active : Bool"
+    (Right TBool)
+    (run (EProjLabel (ERecord [("active", ETrue), ("age", Zero)]) "active"))
+
+testRecordProjectionNat :: Test
+testRecordProjectionNat = TestCase $
+  assertEqual "{active = true, age = zero}.age : Nat"
+    (Right TNat)
+    (run (EProjLabel (ERecord [("active", ETrue), ("age", Zero)]) "age"))
+
+testRecordWithPairAndTuple :: Test
+testRecordWithPairAndTuple = TestCase $
+  assertEqual "{pair = (true, zero), tuple = (true, zero, unit)}"
+    (Right
+      (TRecord
+        [ ("pair", TPair TBool TNat)
+        , ("tuple", TTuple [TBool, TNat, TUnit])
+        ]))
+    (run
+      (ERecord
+        [ ("pair", EPair ETrue Zero)
+        , ("tuple", ETuple [ETrue, Zero, EUnit])
+        ]))
+
+testRecordProjectionPair :: Test
+testRecordProjectionPair = TestCase $
+  assertEqual "{pair = (true, zero)}.pair : Bool × Nat"
+    (Right (TPair TBool TNat))
+    (run
+      (EProjLabel
+        (ERecord [("pair", EPair ETrue Zero)])
+        "pair"))
+
+-- Records (ill-typed)
+testRecordProjectionMissingField :: Test
+testRecordProjectionMissingField = TestCase $
+  case run (EProjLabel (ERecord [("active", ETrue), ("age", Zero)]) "name") of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testRecordProjectionNonRecord :: Test
+testRecordProjectionNonRecord = TestCase $
+  case run (EProjLabel ETrue "active") of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testRecordDuplicateLabels :: Test
+testRecordDuplicateLabels = TestCase $
+  case run (ERecord [("age", Zero), ("age", ETrue)]) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+
 tests :: Test
 tests = TestList
   [ TestLabel "ETrue"                testTrue
@@ -239,6 +395,34 @@ tests = TestList
   , TestLabel "Variant Case"         testVariantCase
   , TestLabel "Variant Tag Missing"  testVariantTagMissing
   , TestLabel "Variant Case Missing" testVariantCaseMissingBranch
+
+  --Pairs
+  , TestLabel "Pair Bool Nat"        testPairBoolNat
+  , TestLabel "Pair Nat Bool"        testPairNatBool
+  , TestLabel "Fst Pair"             testFstPair
+  , TestLabel "Snd Pair"             testSndPair
+  , TestLabel "Fst Non-Pair"         testFstNonPair
+  , TestLabel "Snd Non-Pair"         testSndNonPair
+  , TestLabel "Pair Unit Bool"       testPairUnitBool
+  , TestLabel "Nested Pair"          testNestedPair
+  , TestLabel "Pair With Function"   testPairWithFunction
+
+  --Tuples
+  , TestLabel "Tuple Bool Nat Unit"        testTupleBoolNatUnit
+  , TestLabel "Tuple Projection First"     testTupleProjectionFirst
+  , TestLabel "Tuple Projection Second"    testTupleProjectionSecond
+  , TestLabel "Tuple Projection Third"     testTupleProjectionThird
+  , TestLabel "Tuple Projection OOB"       testTupleProjectionOutOfBounds
+  , TestLabel "Tuple Projection Non-Tuple" testTupleProjectionNonTuple
+  --Records
+  , TestLabel "Record Bool Nat"              testRecordBoolNat
+  , TestLabel "Record Projection Bool"       testRecordProjectionBool
+  , TestLabel "Record Projection Nat"        testRecordProjectionNat
+  , TestLabel "Record With Pair And Tuple"   testRecordWithPairAndTuple
+  , TestLabel "Record Projection Pair"       testRecordProjectionPair
+  , TestLabel "Record Missing Field"         testRecordProjectionMissingField
+  , TestLabel "Record Projection Non-Record" testRecordProjectionNonRecord
+  , TestLabel "Record Duplicate Labels"      testRecordDuplicateLabels
   ]
 
 main :: IO ()

@@ -42,6 +42,9 @@ type Env = [(Name, Type)]
 type Err = Either String
 
 type Res a = StateT Env Err a
+hasDuplicateLabels :: [Name] -> Bool
+hasDuplicateLabels [] = False
+hasDuplicateLabels (x:xs) = x `elem` xs || hasDuplicateLabels xs
 
 checker :: Expr -> Res Type
 checker expr = case expr of
@@ -174,3 +177,60 @@ checker expr = case expr of
                   then return tFirst
                   else throwError ("variant case branches have different types: " ++ show branchTypes)
       _ -> throwError ("case variant expects a variant type, got " ++ show t)
+  -- Rule T-PAIR
+  EPair e1 e2 -> do
+    t1 <- checker e1
+    t2 <- checker e2
+    return (TPair t1 t2)
+
+  -- Rule T-FST
+  EFst e -> do
+    t <- checker e
+    case t of
+      TPair t1 _ -> return t1
+      _ -> throwError ("fst expects a pair, got " ++ show t)
+
+  --Rule T-SND
+  ESnd e -> do
+    t <- checker e
+    case t of
+      TPair _ t2 -> return t2
+      _ -> throwError ("snd expects a pair, got " ++ show t)
+  
+  --Rule T-TUPLE
+  ETuple es -> do
+    ts <- mapM checker es
+    return (TTuple ts)
+
+  --Rule T-TUPLE-PROJ
+  EProjIndex e i -> do
+    t <- checker e
+    case t of
+      TTuple ts ->
+        if i >= 1 && i <= length ts
+        then return (ts !! (i-1))
+        else throwError ("tuple index out of bounds: " ++ show i)
+      _ -> throwError ("tuple projection expects a tuple, got " ++ show t)
+
+    -- Rule T-RECORD
+  ERecord fields -> do
+    let labels = map fst fields
+    if hasDuplicateLabels labels
+    then throwError ("record has duplicate labels: " ++ show labels)
+    else do
+      typedFields <- mapM
+        (\(label, e) -> do
+            t <- checker e
+            return (label, t))
+        fields
+      return (TRecord typedFields)
+
+  -- Rule T-RECORD-PROJ
+  EProjLabel e label -> do
+    t <- checker e
+    case t of
+      TRecord fields ->
+        case lookup label fields of
+          Just fieldType -> return fieldType
+          Nothing -> throwError ("record field not found: " ++ label)
+      _ -> throwError ("record projection expects a record, got " ++ show t)

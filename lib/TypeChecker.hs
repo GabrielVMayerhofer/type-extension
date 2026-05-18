@@ -120,3 +120,18 @@ checker expr = case expr of
     case t of
       TPair _ t2 -> return t2
       _ -> throwError ("snd expects a pair, got " ++ show t)
+  
+  --Rule T-TUPLE
+  ETuple es -> do
+    ts <- mapM checker es
+    return (TTuple ts)
+
+  --Rule T-TUPLE-PROJ
+  EProjIndex e i -> do
+    t <- checker e
+    case t of
+      TTuple ts ->
+        if i >= 1 && i <= length ts
+        then return (ts !! (i-1))
+        else throwError ("tuple index out of bounds: " ++ show i)
+      _ -> throwError ("tuple projection expects a tuple, got " ++ show t)

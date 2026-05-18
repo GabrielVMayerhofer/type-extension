@@ -207,6 +207,44 @@ testPairWithFunction = TestCase $
     (Right (TPair (TBool `TArrow` TBool) TNat))
     (run (EPair (Abs ("x", TBool) (Var "x")) Zero))
 
+-- Tuples (well-typed)
+testTupleBoolNatUnit :: Test
+testTupleBoolNatUnit = TestCase $
+  assertEqual "(true, zero, unit) : Bool × Nat × Unit"
+    (Right (TTuple [TBool, TNat, TUnit]))
+    (run (ETuple [ETrue, Zero, EUnit]))
+
+testTupleProjectionFirst :: Test
+testTupleProjectionFirst = TestCase $
+  assertEqual "(true, zero, unit).1 : Bool"
+    (Right TBool)
+    (run (EProjIndex (ETuple [ETrue, Zero, EUnit]) 1))
+
+testTupleProjectionSecond :: Test
+testTupleProjectionSecond = TestCase $
+  assertEqual "(true, zero, unit).2 : Nat"
+    (Right TNat)
+    (run (EProjIndex (ETuple [ETrue, Zero, EUnit]) 2))
+
+testTupleProjectionThird :: Test
+testTupleProjectionThird = TestCase $
+  assertEqual "(true, zero, unit).3 : Unit"
+    (Right TUnit)
+    (run (EProjIndex (ETuple [ETrue, Zero, EUnit]) 3))
+
+-- Tuples (ill-typed)
+testTupleProjectionOutOfBounds :: Test
+testTupleProjectionOutOfBounds = TestCase $
+  case run (EProjIndex (ETuple [ETrue, Zero]) 3) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testTupleProjectionNonTuple :: Test
+testTupleProjectionNonTuple = TestCase $
+  case run (EProjIndex ETrue 1) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
 tests :: Test
 tests = TestList
   [ TestLabel "ETrue"                testTrue
@@ -246,6 +284,12 @@ tests = TestList
   , TestLabel "Pair Unit Bool"       testPairUnitBool
   , TestLabel "Nested Pair"          testNestedPair
   , TestLabel "Pair With Function"   testPairWithFunction
+  , TestLabel "Tuple Bool Nat Unit"        testTupleBoolNatUnit
+  , TestLabel "Tuple Projection First"     testTupleProjectionFirst
+  , TestLabel "Tuple Projection Second"    testTupleProjectionSecond
+  , TestLabel "Tuple Projection Third"     testTupleProjectionThird
+  , TestLabel "Tuple Projection OOB"       testTupleProjectionOutOfBounds
+  , TestLabel "Tuple Projection Non-Tuple" testTupleProjectionNonTuple
   ]
 
 main :: IO ()

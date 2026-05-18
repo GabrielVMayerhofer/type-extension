@@ -18,6 +18,8 @@ data Expr = ETrue
           | EPair Expr Expr           -- pair: (t1, t2)
           | EFst Expr                 -- first projection: t.1
           | ESnd Expr                 -- second projection: t.2
+          | ETuple [Expr]
+          | EProjIndex Expr Int
      deriving (Eq, Show)
 
 data Value = VTrue
@@ -27,6 +29,7 @@ data Value = VTrue
            | VAbs (Name, Type) Expr
            | VUnit                    -- singleton unit value
            | VPair Value Value
+           | VTuple [Value]
      deriving (Eq, Show)
 
 data Type = TBool
@@ -35,4 +38,5 @@ data Type = TBool
           | TUnit                     -- singleton unit type
           | TBase String              -- base type (String, Float, etc)
           | TPair Type Type
+          | TTuple [Type]
      deriving (Eq, Show)

@@ -100,3 +100,77 @@ checker expr = case expr of
     t2 <- checker e2
     put env
     return t2
+
+  -- Sums
+  EInl e tSum -> case tSum of
+    TSum t1 _ -> do
+      t <- checker e
+      if t == t1
+        then return tSum
+        else throwError ("inl expects type " ++ show t1 ++ ", got " ++ show t)
+    _ -> throwError ("inl type annotation must be a sum type, got " ++ show tSum)
+
+  EInr e tSum -> case tSum of
+    TSum _ t2 -> do
+      t <- checker e
+      if t == t2
+        then return tSum
+        else throwError ("inr expects type " ++ show t2 ++ ", got " ++ show t)
+    _ -> throwError ("inr type annotation must be a sum type, got " ++ show tSum)
+
+  ECase e x e1 y e2 -> do
+    t <- checker e
+    case t of
+      TSum t1 t2 -> do
+        env <- get
+        put $ (x, t1) : env
+        tB1 <- checker e1
+        put $ (y, t2) : env
+        tB2 <- checker e2
+        put env
+        if tB1 == tB2
+          then return tB1
+          else throwError ("case branches have different types: " ++ show tB1 ++ " vs " ++ show tB2)
+      _ -> throwError ("case expects a sum type, got " ++ show t)
+
+  -- Variants
+  ETag label e tVariant -> case tVariant of
+    TVariant fields -> case lookup label fields of
+      Just expectedT -> do
+        t <- checker e
+        if t == expectedT
+          then return tVariant
+          else throwError ("variant tag " ++ label ++ " expects type " ++ show expectedT ++ ", got " ++ show t)
+      Nothing -> throwError ("label " ++ label ++ " not found in variant type " ++ show tVariant)
+    _ -> throwError ("tag type annotation must be a variant type, got " ++ show tVariant)
+
+  ECaseVariant e branches -> do
+    t <- checker e
+    case t of
+      TVariant fields -> do
+        let branchLabels = map (\(l, _, _) -> l) branches
+            fieldLabels = map fst fields
+            missingBranches = filter (`notElem` branchLabels) fieldLabels
+            extraBranches = filter (`notElem` fieldLabels) branchLabels
+        if not (null missingBranches)
+          then throwError ("missing branches for labels: " ++ show missingBranches)
+          else if not (null extraBranches)
+          then throwError ("extra branches for labels not in variant: " ++ show extraBranches)
+          else do
+            env <- get
+            branchTypes <- mapM (\(l, x, eBranch) -> do
+                let tArg = case lookup l fields of
+                             Just t -> t
+                             Nothing -> error "impossible"
+                put $ (x, tArg) : env
+                tB <- checker eBranch
+                return tB
+              ) branches
+            put env
+            case branchTypes of
+              [] -> throwError "empty case variant"
+              (tFirst:tRest) ->
+                if all (== tFirst) tRest
+                  then return tFirst
+                  else throwError ("variant case branches have different types: " ++ show branchTypes)
+      _ -> throwError ("case variant expects a variant type, got " ++ show t)

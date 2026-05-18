@@ -15,6 +15,13 @@ data Expr = ETrue
           | EUnit                     -- unit type
           | EAscription Expr Type     -- ascription (t as T)
           | ELet Name Expr Expr       -- let x = t1 in t2
+          -- Sums
+          | EInl Expr Type            -- inl t as T1+T2
+          | EInr Expr Type            -- inr t as T1+T2
+          | ECase Expr Name Expr Name Expr -- case t of inl x => t1 | inr y => t2
+          -- Variants
+          | ETag Name Expr Type       -- <tag=t> as T
+          | ECaseVariant Expr [(Name, Name, Expr)] -- case t of <l=x> => t_x
      deriving (Eq, Show)
 
 data Value = VTrue
@@ -30,4 +37,8 @@ data Type = TBool
           | Type `TArrow` Type
           | TUnit                     -- singleton unit type
           | TBase String              -- base type (String, Float, etc)
+          -- Sums
+          | TSum Type Type            -- T1 + T2
+          -- Variants
+          | TVariant [(Name, Type)]   -- <l1:T1, ..., ln:Tn>
      deriving (Eq, Show)

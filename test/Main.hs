@@ -151,6 +151,58 @@ testAppArgMismatch = TestCase $
     Left _  -> return ()
     Right t -> assertFailure ("expected type error, got " ++ show t)
 
+-- Sums (well-typed)
+testSumInl :: Test
+testSumInl = TestCase $
+  assertEqual "inl 0 as Nat+Bool"
+    (Right (TSum TNat TBool))
+    (run (EInl Zero (TSum TNat TBool)))
+
+testSumCase :: Test
+testSumCase = TestCase $
+  assertEqual "case (inl 0 as Nat+Bool) of inl x => 0 | inr y => 0"
+    (Right TNat)
+    (run (ECase (EInl Zero (TSum TNat TBool)) "x" Zero "y" Zero))
+
+-- Sums (ill-typed)
+testSumCaseMismatch :: Test
+testSumCaseMismatch = TestCase $
+  case run (ECase (EInl Zero (TSum TNat TBool)) "x" Zero "y" ETrue) of
+    Left _ -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testSumCaseNotSum :: Test
+testSumCaseNotSum = TestCase $
+  case run (ECase ETrue "x" Zero "y" Zero) of
+    Left _ -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+-- Variants (well-typed)
+testVariantTag :: Test
+testVariantTag = TestCase $
+  assertEqual "<ok=0> as <ok:Nat, error:Bool>"
+    (Right (TVariant [("ok", TNat), ("error", TBool)]))
+    (run (ETag "ok" Zero (TVariant [("ok", TNat), ("error", TBool)])))
+
+testVariantCase :: Test
+testVariantCase = TestCase $
+  assertEqual "case <ok=0> of <ok=x> => true | <error=y> => false"
+    (Right TBool)
+    (run (ECaseVariant (ETag "ok" Zero (TVariant [("ok", TNat), ("error", TBool)])) [("ok", "x", ETrue), ("error", "y", EFalse)]))
+
+-- Variants (ill-typed)
+testVariantTagMissing :: Test
+testVariantTagMissing = TestCase $
+  case run (ETag "foo" Zero (TVariant [("ok", TNat), ("error", TBool)])) of
+    Left _ -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testVariantCaseMissingBranch :: Test
+testVariantCaseMissingBranch = TestCase $
+  case run (ECaseVariant (ETag "ok" Zero (TVariant [("ok", TNat), ("error", TBool)])) [("ok", "x", ETrue)]) of
+    Left _ -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
 tests :: Test
 tests = TestList
   [ TestLabel "ETrue"                testTrue
@@ -179,6 +231,14 @@ tests = TestList
   , TestLabel "App returns Bool"     testAppReturnsBool
   , TestLabel "App not a function"   testAppNotAFunction
   , TestLabel "App arg mismatch"     testAppArgMismatch
+  , TestLabel "Sum Inl"              testSumInl
+  , TestLabel "Sum Case"             testSumCase
+  , TestLabel "Sum Case Mismatch"    testSumCaseMismatch
+  , TestLabel "Sum Case Not Sum"     testSumCaseNotSum
+  , TestLabel "Variant Tag"          testVariantTag
+  , TestLabel "Variant Case"         testVariantCase
+  , TestLabel "Variant Tag Missing"  testVariantTagMissing
+  , TestLabel "Variant Case Missing" testVariantCaseMissingBranch
   ]
 
 main :: IO ()

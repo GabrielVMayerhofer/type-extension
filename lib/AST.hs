@@ -20,6 +20,8 @@ data Expr = ETrue
           | ESnd Expr                 -- second projection: t.2
           | ETuple [Expr]
           | EProjIndex Expr Int
+          | ERecord [(Name, Expr)]
+          | EProjLabel Expr Name
      deriving (Eq, Show)
 
 data Value = VTrue
@@ -30,6 +32,7 @@ data Value = VTrue
            | VUnit                    -- singleton unit value
            | VPair Value Value
            | VTuple [Value]
+           | VRecord [(Name, Value)]
      deriving (Eq, Show)
 
 data Type = TBool
@@ -39,4 +42,5 @@ data Type = TBool
           | TBase String              -- base type (String, Float, etc)
           | TPair Type Type
           | TTuple [Type]
+          | TRecord [(Name, Type)]
      deriving (Eq, Show)

@@ -85,6 +85,15 @@ checker expr = case expr of
       (t11 `TArrow` t12) -> if t2 == t11 then return t12 else throwError ("argument type mismatch: expected " ++ show t11 ++ ", got " ++ show t2)
       _ -> throwError ("expected a function type, got " ++ show t1)
 
+  EFix e -> do
+    t <- checker e
+    case t of
+      (t1 `TArrow` t2) ->
+        if t1 == t2
+          then return t2
+          else throwError ("fix expects T -> T, got " ++ show t)
+      _ -> throwError ("fix expects a function type, got " ++ show t)
+
   -- Rule T-UNIT
   EUnit -> return TUnit
 
@@ -234,3 +243,34 @@ checker expr = case expr of
           Just fieldType -> return fieldType
           Nothing -> throwError ("record field not found: " ++ label)
       _ -> throwError ("record projection expects a record, got " ++ show t)
+
+  -- Lists
+  ENil t -> return (TList t)
+
+  ECons eHead eTail -> do
+    tHead <- checker eHead
+    tTail <- checker eTail
+    case tTail of
+      TList tElem ->
+        if tHead == tElem
+          then return (TList tElem)
+          else throwError ("cons head type mismatch: expected " ++ show tElem ++ ", got " ++ show tHead)
+      _ -> throwError ("cons tail must be a list, got " ++ show tTail)
+
+  EIsNil e -> do
+    t <- checker e
+    case t of
+      TList _ -> return TBool
+      _ -> throwError ("isnil expects a list, got " ++ show t)
+
+  EHead e -> do
+    t <- checker e
+    case t of
+      TList tElem -> return tElem
+      _ -> throwError ("head expects a list, got " ++ show t)
+
+  ETail e -> do
+    t <- checker e
+    case t of
+      TList tElem -> return (TList tElem)
+      _ -> throwError ("tail expects a list, got " ++ show t)

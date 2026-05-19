@@ -12,6 +12,7 @@ data Expr = ETrue
           | Var Name                  -- x               vars in Lambda Calculus
           | Abs (Name, Type) Expr     -- (\x:T . expr)   abstraction in Lambda Calculus
           | App Expr Expr             -- t1 t2           application in Lambda Calculus
+          | EFix Expr                 -- fix t
           | EUnit                     -- unit type
           | EAscription Expr Type     -- ascription (t as T)
           | ELet Name Expr Expr       -- let x = t1 in t2
@@ -32,6 +33,12 @@ data Expr = ETrue
           --Records
           | ERecord [(Name, Expr)]
           | EProjLabel Expr Name
+          -- Lists
+          | ENil Type
+          | ECons Expr Expr
+          | EIsNil Expr
+          | EHead Expr
+          | ETail Expr
      deriving (Eq, Show)
 
 data Value = VTrue
@@ -43,6 +50,8 @@ data Value = VTrue
            | VPair Value Value
            | VTuple [Value]
            | VRecord [(Name, Value)]
+           | VNil Type
+           | VCons Value Value
      deriving (Eq, Show)
 
 data Type = TBool
@@ -60,4 +69,6 @@ data Type = TBool
           | TTuple [Type]
           --Records
           | TRecord [(Name, Type)]
+          --Lists
+          | TList Type
      deriving (Eq, Show)

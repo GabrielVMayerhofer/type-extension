@@ -3,10 +3,14 @@ module Main (main) where
 import Test.HUnit
 import Control.Monad.State (evalStateT)
 import AST
+import Evaluator
 import TypeChecker
 
 run :: Expr -> Either String Type
 run e = evalStateT (checker e) []
+
+runEval :: Expr -> Either String Expr
+runEval = eval
 
 -- Bool literals
 testTrue :: Test
@@ -358,6 +362,61 @@ testRecordDuplicateLabels = TestCase $
     Left _  -> return ()
     Right t -> assertFailure ("expected type error, got " ++ show t)
 
+-- Fix and Lists (typing + evaluation)
+testFixType :: Test
+testFixType = TestCase $
+  assertEqual "fix (\\f:Nat->Nat. f) : Nat->Nat"
+    (Right (TNat `TArrow` TNat))
+    (run (EFix (Abs ("f", TNat `TArrow` TNat) (Var "f"))))
+
+testFixTypeMismatch :: Test
+testFixTypeMismatch = TestCase $
+  case run (EFix (Abs ("f", TBool) Zero)) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testNilType :: Test
+testNilType = TestCase $
+  assertEqual "nil[Nat] : List Nat"
+    (Right (TList TNat))
+    (run (ENil TNat))
+
+testConsTypeMismatch :: Test
+testConsTypeMismatch = TestCase $
+  case run (ECons Zero (ECons ETrue (ENil TBool))) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected type error, got " ++ show t)
+
+testEvalFixUnfold :: Test
+testEvalFixUnfold = TestCase $
+  assertEqual "fix unfolds once"
+    (Right (Abs ("x", TNat) (Var "x")))
+    (runEval (EFix (Abs ("f", TNat `TArrow` TNat) (Abs ("x", TNat) (Var "x")))))
+
+testEvalIsNilCons :: Test
+testEvalIsNilCons = TestCase $
+  assertEqual "isnil (cons 0 nil) => false"
+    (Right EFalse)
+    (runEval (EIsNil (ECons Zero (ENil TNat))))
+
+testEvalHeadCons :: Test
+testEvalHeadCons = TestCase $
+  assertEqual "head (cons 0 nil) => 0"
+    (Right Zero)
+    (runEval (EHead (ECons Zero (ENil TNat))))
+
+testEvalTailCons :: Test
+testEvalTailCons = TestCase $
+  assertEqual "tail (cons 0 nil) => nil"
+    (Right (ENil TNat))
+    (runEval (ETail (ECons Zero (ENil TNat))))
+
+testEvalHeadNilError :: Test
+testEvalHeadNilError = TestCase $
+  case runEval (EHead (ENil TNat)) of
+    Left _  -> return ()
+    Right t -> assertFailure ("expected runtime error, got " ++ show t)
+
 
 tests :: Test
 tests = TestList
@@ -423,6 +482,16 @@ tests = TestList
   , TestLabel "Record Missing Field"         testRecordProjectionMissingField
   , TestLabel "Record Projection Non-Record" testRecordProjectionNonRecord
   , TestLabel "Record Duplicate Labels"      testRecordDuplicateLabels
+  --Fix + Lists
+  , TestLabel "Fix Type"                     testFixType
+  , TestLabel "Fix Type Mismatch"            testFixTypeMismatch
+  , TestLabel "Nil Type"                     testNilType
+  , TestLabel "Cons Type Mismatch"           testConsTypeMismatch
+  , TestLabel "Eval Fix Unfold"              testEvalFixUnfold
+  , TestLabel "Eval IsNil Cons"              testEvalIsNilCons
+  , TestLabel "Eval Head Cons"               testEvalHeadCons
+  , TestLabel "Eval Tail Cons"               testEvalTailCons
+  , TestLabel "Eval Head Nil Error"          testEvalHeadNilError
   ]
 
 main :: IO ()
